@@ -20,7 +20,9 @@ pub fn calc_rank(hand: &[Card]) -> Rank {
     let mut cards: Vec<Card> = hand.to_vec();
     cards.sort();
     let mut uniq_cards: Vec<Card> = cards.clone();
+    cards.reverse();
     uniq_cards.dedup();
+    uniq_cards.reverse();
     if let Some(rank) = check_flush(&cards) {
         rank
     } else if is_straight(&uniq_cards) {
@@ -50,7 +52,6 @@ fn check_flush(hand: &[Card]) -> Option<Rank> {
         if flush.is_empty() {
             None
         } else if is_straight(&flush) {
-            flush.reverse();
             if flush[0].0 == 'A' && flush[4].2 == 10 {
                 Some(RoyalFlush)
             } else {
@@ -67,7 +68,6 @@ fn is_straight(hand: &[Card]) -> bool {
         false
     } else {
         let mut cards = hand.to_vec();
-        cards.reverse();
         if cards[0].0 == 'A' {
             let ace_low: Card = Card('A', cards[0].1, 1);
             cards.push(ace_low);
