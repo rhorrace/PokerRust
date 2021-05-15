@@ -1,16 +1,18 @@
-use std::fmt::{Display, Formatter};
+use std::fmt::{Display, Formatter, Debug};
 use std::cmp::{Ordering};
 
 #[derive(Clone, Copy)]
 pub struct Card(pub char, pub char, pub u8);
 
+impl Debug for Card {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        custom_fmt(*self, f)
+    }
+}
+
 impl Display for Card {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let name_str = match self.2 {
-            10 => self.2.to_string(),
-            _ => self.0.to_string()
-        };
-        write!(f, "{}:{}", name_str, self.1)
+        custom_fmt(*self, f)
     }
 }
 
@@ -51,6 +53,13 @@ impl PartialOrd for Card {
 
     fn ge(&self, other: &Self) -> bool {
         self.2 >= other.2
+    }
+}
+
+fn custom_fmt(card: Card, f: &mut Formatter<'_>) -> std::fmt::Result {
+    match card.2 {
+        10 => write!(f, "{}:{}", card.2, card.1),
+        _ => write!(f, "{}:{}", card.0, card.1)
     }
 }
 

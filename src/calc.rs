@@ -20,7 +20,7 @@ pub fn calc_rank(hand: &[Card]) -> Rank {
     let mut cards: Vec<Card> = hand.to_vec();
     cards.sort();
     let mut uniq_cards: Vec<Card> = cards.clone();
-    uniq_cards.dedup_by(|a, b| a == b);
+    uniq_cards.dedup();
     if let Some(rank) = check_flush(&cards) {
         rank
     } else if is_straight(&uniq_cards) {
@@ -31,65 +31,65 @@ pub fn calc_rank(hand: &[Card]) -> Rank {
 }
 
 fn check_flush(hand: &[Card]) -> Option<Rank> {
-    let mut groups: HashMap<char, Vec<Card>> = "HDSC".chars().map(|c| (c, Vec::new())).collect();
-    for card in hand {
-        groups.entry(card.1)
-            .or_insert(Vec::new())
-            .push(*card);
-    }
-    let mut flush: Vec<Card> = Vec::new();
-    for cards in groups.values() {
-        if cards.len() >= 5 {
-            flush = cards.clone();
-            break;
-        }
-    }
-    if flush.is_empty() {
+    if hand.len() < 5 {
         None
-    } else if is_straight(&flush) {
-        flush.reverse();
-        if flush[0].2 == 14 && flush[4].2 == 10 {
-            Some(RoyalFlush)
-        } else {
-            Some(StraightFlush)
-        }
     } else {
-        Some(Flush)
+        let mut groups: HashMap<char, Vec<Card>> = "HDSC".chars().map(|c| (c, Vec::new())).collect();
+        for card in hand {
+            groups.entry(card.1)
+                .or_insert(Vec::new())
+                .push(*card);
+        }
+        let mut flush: Vec<Card> = Vec::new();
+        for cards in groups.values() {
+            if cards.len() >= 5 {
+                flush = cards.clone();
+                break;
+            }
+        }
+        if flush.is_empty() {
+            None
+        } else if is_straight(&flush) {
+            flush.reverse();
+            if flush[0].0 == 'A' && flush[4].2 == 10 {
+                Some(RoyalFlush)
+            } else {
+                Some(StraightFlush)
+            }
+        } else {
+            Some(Flush)
+        }
     }
 }
 
 fn is_straight(hand: &[Card]) -> bool {
-    let mut cards = hand.to_vec();
-    if let Some(&card) = cards.last() {
-        if card.0 == 'A' {
-            let mut ace_low: Card = card;
-            ace_low.2 = 1;
-            cards.insert(0, ace_low);
+    if hand.len() < 5 {
+        false
+    } else {
+        let mut cards = hand.to_vec();
+        cards.reverse();
+        if cards[0].0 == 'A' {
+            let ace_low: Card = Card('A', cards[0].1, 1);
+            cards.push(ace_low);
         }
-    }
-    match hand.len() >= 5 {
-        false => false,
-        true => hand.windows(5)
-            .any(|straight| straight[4].2 - straight[0].2 == 4)
+        cards.windows(5)
+            .any(|straight| straight[0].2 - straight[4].2 == 4)
     }
 }
 
 fn other_rank(hand: &[Card]) -> Rank {
     let mut value_count: HashMap<u8, u8> = HashMap::new();
     let mut counts: HashMap<u8, u8> = (1..=4).map(|i| (i, 0)).collect::<HashMap<_, _>>();
-    for card in hand {
-        *value_count.entry(card.2).or_insert(0) += 1;
-    }
-    for &i in value_count.values() {
-        *counts.entry(i).or_insert(0) += 1;
-    }
+    hand.iter()
+        .for_each(|card| *value_count.entry(card.2).or_insert(0) += 1);
+    value_count.values()
+        .for_each(|&i| *counts.entry(i).or_insert(0) += 1);
     if counts[&4] >= 1 {
         FourOfKind
     } else if counts[&3] >= 1 {
-        if counts[&3] >= 2 || counts[&2] >= 1 {
-            FullHouse
-        } else {
-            ThreeOfKind
+        match counts[&3] > 1 || counts[&2] >= 1 {
+            true => FullHouse,
+            false => ThreeOfKind
         }
     } else if counts[&2] >= 2 {
         TwoPair
@@ -103,12 +103,13 @@ fn other_rank(hand: &[Card]) -> Rank {
 #[cfg(test)]
 mod calc_tests {
     use crate::card::Card;
-    use crate::calc::calc_rank;
-    use crate::calc::Rank::*;
+    use crate::calc::{calc_rank, Rank::*};
 
     #[test]
     fn test_rank() {
         assert!(RoyalFlush > Straight);
+        assert_eq!(Flush, Flush);
+        assert!(HighCard < OnePair);
     }
 
     #[test]
@@ -119,8 +120,10 @@ mod calc_tests {
 
     #[test]
     fn test_straight_flush() {
-        let hand: Vec<Card> = vec![Card('9', 'H', 9), Card('K', 'H', 13), Card('2', 'D', 2), Card('Q', 'H', 12), Card('7', 'S', 7), Card('J', 'H', 11), Card('_', 'H', 10)];
-        assert_eq!(calc_rank(&hand), StraightFlush)
+        let high_straight: Vec<Card> = vec![Card('9', 'H', 9), Card('K', 'H', 13), Card('2', 'D', 2), Card('Q', 'H', 12), Card('7', 'S', 7), Card('J', 'H', 11), Card('_', 'H', 10)];
+        let low_straight: Vec<Card> = vec![Card('A', 'H', 14), Card('3', 'H', 3), Card('2', 'H', 2), Card('Q', 'D', 12), Card('5', 'H', 5), Card('J', 'S', 11), Card('4', 'H', 4)];
+        assert_eq!(calc_rank(&high_straight), StraightFlush);
+        assert_eq!(calc_rank(&low_straight), StraightFlush);
     }
 
     #[test]
@@ -145,8 +148,10 @@ mod calc_tests {
 
     #[test]
     fn test_straight() {
-        let hand: Vec<Card> = vec![Card('9', 'D', 9), Card('K', 'C', 13), Card('2', 'D', 2), Card('Q', 'H', 12), Card('7', 'S', 7), Card('J', 'H', 11), Card('_', 'H', 10)];
-        assert_eq!(calc_rank(&hand), Straight)
+        let straight_high: Vec<Card> = vec![Card('9', 'D', 9), Card('K', 'C', 13), Card('2', 'D', 2), Card('Q', 'H', 12), Card('7', 'S', 7), Card('J', 'H', 11), Card('_', 'H', 10)];
+        let straight_low: Vec<Card> = vec![Card('4', 'D', 4), Card('A', 'C', 14), Card('2', 'D', 2), Card('Q', 'H', 12), Card('5', 'S', 5), Card('J', 'H', 11), Card('3', 'H', 3)];
+        assert_eq!(calc_rank(&straight_high), Straight);
+        assert_eq!(calc_rank(&straight_low), Straight);
     }
 
     #[test]
