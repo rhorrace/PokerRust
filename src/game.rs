@@ -1,7 +1,7 @@
 extern crate rand;
 
 use crate::calc::{calc_rank, Rank};
-use crate::card::Card;
+use crate::card::{Card, Name, Name::*, Suit, Suit::*};
 use rand::{seq::SliceRandom, thread_rng};
 use std::collections::VecDeque;
 
@@ -61,27 +61,15 @@ impl Game {
 }
 
 fn build_deck() -> VecDeque<Card> {
+    let names: [Name; 13] = [Two, Three, Four, Five, Six, Seven, Eight, Nine, Ten, Jack, Queen, King, AceHigh];
+    let suits: [Suit; 4] = [Hearts, Diamonds, Spades, Clubs];
     let mut deck: VecDeque<Card> = VecDeque::new();
-    "HDSC".chars()
-        .for_each(|suit| {
-            (2..=14).for_each(|i| {
-                let name: char = match i {
-                    2 => '2',
-                    3 => '3',
-                    4 => '4',
-                    5 => '5',
-                    6 => '6',
-                    7 => '7',
-                    8 => '8',
-                    9 => '9',
-                    11 => 'J',
-                    12 => 'Q',
-                    13 => 'K',
-                    14 => 'A',
-                    _ => '_',
-                };
-                deck.push_back(Card(name, suit, i));
-            });
+    suits.iter()
+        .for_each(|&suit| {
+            names.iter()
+                .for_each(|&name| {
+                    deck.push_back(Card(name, suit));
+                });
         });
     deck
 }
