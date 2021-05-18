@@ -35,8 +35,8 @@ impl Game {
     }
 
     fn display_hands(&self) {
-        println!("Computer: {:?}", self.computer);
         println!("Player:   {:?}", self.player);
+        println!("Computer: {:?}", self.computer);
     }
 
     fn shuffle(&mut self) {
@@ -52,10 +52,10 @@ impl Game {
         let computer_rank: Rank = calc_rank(&self.computer);
         let player_best_hand: Vec<Card> = calc_best_hand(&self.player, player_rank);
         let computer_best_hand: Vec<Card> = calc_best_hand(&self.computer, computer_rank);
-        println!("Computer: {}", computer_rank);
-        println!("\t{:?}", computer_best_hand);
         println!("Player:   {}", player_rank);
         println!("\t{:?}", player_best_hand);
+        println!("Computer: {}", computer_rank);
+        println!("\t{:?}", computer_best_hand);
         if player_rank > computer_rank {
             println!("You Win!");
         } else if player_rank < computer_rank {
