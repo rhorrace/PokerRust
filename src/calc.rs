@@ -1,8 +1,9 @@
 use crate::calc::Rank::*;
 use crate::card::{Card, Name, Name::*, Suit};
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 
-#[derive(Debug, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum Rank {
     HighCard,
     OnePair,
@@ -16,72 +17,79 @@ pub enum Rank {
     RoyalFlush,
 }
 
+impl Display for Rank {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let rank_str = match self {
+            HighCard => "High Card",
+            OnePair => "One Pair",
+            TwoPair => "Two Pair",
+            ThreeOfKind => "Three of a Kind",
+            Straight => "Straight",
+            Flush => "Flush",
+            FullHouse => "Full House",
+            FourOfKind => "Four of a Kind",
+            StraightFlush => "Straight",
+            RoyalFlush => "Royal Flush"
+        };
+        write!(f, "{}", rank_str)
+    }
+}
+
+// Calculates the best hand according to the calculated rank
 pub fn calc_best_hand(hand: &[Card], rank: Rank) -> Vec<Card> {
     let mut cards: Vec<Card> = hand.to_vec();
     let mut value_count: HashMap<Name, u8> = HashMap::new();
-    let mut counts: HashMap<u8, u8> = (1..=4).map(|i| (i, 0)).collect::<HashMap<_, _>>();
-    let mut suit_count: HashMap<Suit, u8> = HashMap::new();
     hand.iter()
         .for_each(|card| {
             *value_count.entry(card.0).or_insert(0) += 1;
-            *suit_count.entry(card.1).or_insert(0) += 1;
         });
-    value_count.values()
-        .for_each(|&i| *counts.entry(i).or_insert(0) += 1);
-    cards.sort_by(|a, b| value_count[&b.0].cmp(&value_count[&a.0])
-        .then_with(|| b.cmp(a)));
     match rank {
-        HighCard =>
+        HighCard | Flush | StraightFlush | RoyalFlush => {
+            cards.sort_by(|a, b| b.cmp(a));
+        }
+        OnePair | TwoPair | ThreeOfKind | FullHouse | FourOfKind => {
+            cards.sort_by(|a, b| value_count[&b.0].cmp(&value_count[&a.0])
+                .then_with(|| b.cmp(a))
+                .then_with(|| a.1.cmp(&b.1)));
+        }
+        Straight => {
+            cards.sort_by(|a, b| a.cmp(b)
+                .then_with(|| a.1.cmp(&b.1)));
+            cards.dedup();
+            cards.reverse();
+        }
+    }
+
+    if rank == Flush || rank == StraightFlush || rank == RoyalFlush {
+        let max_suit: Suit = mode_suit(&cards).unwrap();
+        cards = cards.iter()
+            .filter(|c| c.1 == max_suit)
+            .map(|&c| c)
+            .collect();
+    }
+
+    match rank {
+        HighCard | OnePair | ThreeOfKind | Flush | RoyalFlush =>
             cards.iter()
                 .take(5)
                 .map(|&c| c)
                 .collect(),
-        OnePair => {
-            let mut best_hand: Vec<Card> = cards[0..2].to_vec();
-            let mut kicker: Vec<Card> = cards.iter()
-                .skip(2)
-                .map(|&c| c)
-                .collect();
-            kicker.sort_by(|a, b| b.cmp(a));
-            let mut kicker: Vec<Card> = kicker.iter()
-                .take(3)
-                .map(|&c| c)
-                .collect();
-            best_hand.append(&mut kicker);
-            best_hand
-        }
-        TwoPair => {
+        TwoPair | FourOfKind => {
             let mut best_hand: Vec<Card> = cards[0..4].to_vec();
-            best_hand.sort_by(|a, b| b.cmp(a).then_with(|| a.1.cmp(&b.1)));
             let mut kicker: Vec<Card> = cards.iter()
                 .skip(4)
-                .take(1)
-                .map(|&c| c)
-                .collect();
-            best_hand.append(&mut kicker);
-            best_hand
-        }
-        ThreeOfKind => {
-            let mut best_hand: Vec<Card> = cards[0..3].to_vec();
-            best_hand.sort_by(|a, b| a.1.cmp(&b.1));
-            let mut kicker: Vec<Card> = cards.iter()
-                .skip(3)
-                .take(2)
                 .map(|&c| c)
                 .collect();
             kicker.sort_by(|a, b| b.cmp(a));
-            best_hand.append(&mut kicker);
+            best_hand.push(kicker[0]);
             best_hand
         }
-        Straight => {
-            let mut best_hand: Vec<Card> = Vec::new();
-            cards.sort_by(|a, b| a.cmp(b).then_with(|| a.1.cmp(&b.1)));
-            cards.dedup();
-            cards.reverse();
+        Straight | StraightFlush => {
             if cards[0].0 == AceHigh {
                 let ace_low: Card = Card(AceLow, cards[0].1);
                 cards.push(ace_low);
             }
+            let mut best_hand: Vec<Card> = Vec::new();
             for straight in cards.windows(5) {
                 if straight[0].0 as u8 - straight[4].0 as u8 == 4 {
                     best_hand = straight.to_vec();
@@ -89,17 +97,6 @@ pub fn calc_best_hand(hand: &[Card], rank: Rank) -> Vec<Card> {
                 }
             }
             best_hand
-        }
-        Flush => {
-            let max_suit: Suit = *suit_count.iter()
-                .max_by_key(|entry| entry.1)
-                .unwrap().0;
-            cards.sort_by(|a, b| b.cmp(a));
-            cards.iter()
-                .filter(|c| c.1 == max_suit)
-                .take(5)
-                .map(|&c| c)
-                .collect()
         }
         FullHouse => {
             let mut best_hand: Vec<Card> = cards[0..3].to_vec();
@@ -115,99 +112,48 @@ pub fn calc_best_hand(hand: &[Card], rank: Rank) -> Vec<Card> {
             best_hand.append(&mut pair);
             best_hand
         }
-        FourOfKind => {
-            let mut best_hand: Vec<Card> = cards[0..4].to_vec();
-            best_hand.sort_by(|a, b| a.1.cmp(&b.1));
-            let mut kicker: Vec<Card> = cards.iter()
-                .skip(4)
-                .take(1)
-                .map(|&c| c)
-                .collect();
-            best_hand.append(&mut kicker);
-            best_hand
-        }
-        StraightFlush => {
-            let max_suit: Suit = *suit_count.iter()
-                .max_by_key(|entry| entry.1)
-                .unwrap().0;
-            cards.sort_by(|a, b| b.cmp(a));
-            let mut flush: Vec<Card> = cards.iter()
-                .filter(|c| c.1 == max_suit)
-                .map(|&c| c)
-                .collect();
-            if flush[0].0 == AceHigh {
-                let ace_low: Card = Card(AceLow, flush[0].1);
-                flush.push(ace_low);
-            }
-            let mut best_hand: Vec<Card> = Vec::new();
-            for straight in flush.windows(5) {
-                if straight[0].0 as u8 - straight[4].0 as u8 == 4 {
-                    best_hand = straight.to_vec();
-                    break;
-                }
-            }
-            best_hand
-        }
-        RoyalFlush => {
-            let max_suit: Suit = *suit_count.iter()
-                .max_by_key(|entry| entry.1)
-                .unwrap().0;
-            cards.sort_by(|a, b| b.cmp(a));
-            cards.iter()
-                .filter(|c| c.1 == max_suit)
-                .take(5)
-                .map(|&c| c)
-                .collect()
-        }
     }
 }
 
 pub fn calc_rank(hand: &[Card]) -> Rank {
+    let len: usize = hand.len();
     let mut cards: Vec<Card> = hand.to_vec();
-    cards.sort_by(|a, b| a.cmp(b).then_with(|| a.1.cmp(&b.1)));
+    cards.sort_by(|a, b| a.cmp(b));
     let mut uniq_cards: Vec<Card> = cards.clone();
     cards.reverse();
     uniq_cards.dedup();
     uniq_cards.reverse();
-    if let Some(rank) = check_flush(&cards) {
-        rank
-    } else if is_straight(&uniq_cards) {
-        Straight
+    if len >= 5 {
+        if let Some(rank) = check_flush(&cards) {
+            rank
+        } else if is_straight(&uniq_cards) {
+            Straight
+        } else {
+            other_rank(&cards)
+        }
     } else {
         other_rank(&cards)
     }
 }
 
 fn check_flush(hand: &[Card]) -> Option<Rank> {
-    let mut suit_count: HashMap<Suit, u8> = HashMap::new();
-    hand.iter().for_each(|card| {
-        *suit_count.entry(card.1)
-            .or_insert(0)
-            += 1;
-    });
-    match suit_count.iter().max_by_key(|entry| entry.1) {
-        Some(entry) => {
-            let flush: Vec<Card> = hand.iter()
-                .filter(|&c| c.1 == *entry.0)
-                .map(|&c| c)
-                .collect();
-            let opt_rank: Option<Rank> = match flush.len() >= 5 {
-                true => {
-                    let rank = match is_straight(&flush) {
-                        true => match flush[0].0 == AceHigh && flush[4].0 == Ten {
-                            true => RoyalFlush,
-                            false => StraightFlush
-                        },
-                        false => Flush
-                    };
-                    Some(rank)
-                }
-                false => None
-            };
-            opt_rank
+    let mut rank: Option<Rank> = None;
+    if let Some(suit) = mode_suit(&hand) {
+        let flush: Vec<Card> = hand.iter()
+            .filter(|&c| c.1 == suit)
+            .map(|&c| c)
+            .collect();
+        if flush.len() >= 5 {
+            rank = match is_straight(&flush) {
+                true => match flush[0].0 == AceHigh && flush[4].0 == Ten {
+                    true => Some(RoyalFlush),
+                    false => Some(StraightFlush)
+                },
+                false => Some(Flush)
+            }
         }
-        None => None
     }
+    rank
 }
 
 fn is_straight(hand: &[Card]) -> bool {
@@ -222,6 +168,18 @@ fn is_straight(hand: &[Card]) -> bool {
         }
         false => false
     }
+}
+
+fn mode_suit(cards: &[Card]) -> Option<Suit> {
+    let mut suit_count: HashMap<Suit, u8> = HashMap::new();
+
+    for &card in cards {
+        *suit_count.entry(card.1).or_insert(0) += 1;
+    }
+
+    suit_count.into_iter()
+        .max_by_key(|&(_, count)| count)
+        .map(|(val, _)| val)
 }
 
 fn other_rank(hand: &[Card]) -> Rank {
@@ -428,10 +386,10 @@ mod calc_tests {
                                    Card(Four, Clubs)];
         assert_eq!(calc_rank(&hand), TwoPair);
         assert_eq!(calc_best_hand(&hand, TwoPair), vec![Card(Nine, Hearts),
-                                                            Card(Nine, Spades),
-                                                            Card(Two, Hearts),
-                                                            Card(Two, Diamonds),
-                                                            Card(Eight, Diamonds)]);
+                                                        Card(Nine, Spades),
+                                                        Card(Two, Hearts),
+                                                        Card(Two, Diamonds),
+                                                        Card(Eight, Diamonds)]);
     }
 
     #[test]
@@ -462,9 +420,9 @@ mod calc_tests {
                                    Card(Four, Clubs)];
         assert_eq!(calc_rank(&hand), HighCard);
         assert_eq!(calc_best_hand(&hand, HighCard), vec![Card(AceHigh, Hearts),
-                                                        Card(Jack, Diamonds),
-                                                        Card(Nine, Spades),
-                                                        Card(Eight, Diamonds),
-                                                        Card(Six, Clubs)]);
+                                                         Card(Jack, Diamonds),
+                                                         Card(Nine, Spades),
+                                                         Card(Eight, Diamonds),
+                                                         Card(Six, Clubs)]);
     }
 }

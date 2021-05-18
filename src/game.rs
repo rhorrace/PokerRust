@@ -1,6 +1,6 @@
 extern crate rand;
 
-use crate::calc::{calc_rank, Rank};
+use crate::calc::{calc_rank, Rank, calc_best_hand};
 use crate::card::{Card, Name, Name::*, Suit, Suit::*};
 use rand::{seq::SliceRandom, thread_rng};
 use std::collections::VecDeque;
@@ -50,13 +50,32 @@ impl Game {
     fn winner(&self) {
         let player_rank: Rank = calc_rank(&self.player);
         let computer_rank: Rank = calc_rank(&self.computer);
+        let player_best_hand: Vec<Card> = calc_best_hand(&self.player, player_rank);
+        let computer_best_hand: Vec<Card> = calc_best_hand(&self.computer, computer_rank);
+        println!("Computer: {}", computer_rank);
+        println!("\t{:?}", computer_best_hand);
+        println!("Player:   {}", player_rank);
+        println!("\t{:?}", player_best_hand);
         if player_rank > computer_rank {
             println!("You Win!");
         } else if player_rank < computer_rank {
             println!("You Lose!");
         } else {
-            println!("It's a Tie!")
+            self.tie_breaker(&player_best_hand, &computer_best_hand);
         }
+    }
+
+    fn tie_breaker(&self, player: &[Card], computer: &[Card]) {
+        for (p, c) in player.iter().zip(computer) {
+            if p > c {
+                println!("You Win!");
+                return;
+            } else if p < c {
+                println!("You Lose!");
+                return;
+            }
+        }
+        println!("It's a Tie!")
     }
 }
 
