@@ -34,6 +34,10 @@ impl Game {
         self.winner();
     }
 
+    pub fn play_texas_holdem(&mut self) {
+
+    }
+
     // Private functions
 
     fn deal(&mut self, n: u8) {
