@@ -43,6 +43,7 @@ pub fn calc_best_hand(hand: &[Card], rank: Rank) -> Vec<Card> {
         .for_each(|card| {
             *value_count.entry(card.0).or_insert(0) += 1;
         });
+
     match rank {
         HighCard | Flush | StraightFlush | RoyalFlush => {
             cards.sort_by(|a, b| b.cmp(a));
