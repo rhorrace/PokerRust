@@ -34,13 +34,6 @@ impl Game {
         self.winner();
     }
 
-    pub fn play_five_card_draw(&mut self) {
-        self.shuffle();
-        self.deal(5);
-        self.display_hands();
-        self.winner();
-    }
-
     // Private functions
 
     fn deal(&mut self, n: u8) {
