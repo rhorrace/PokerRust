@@ -44,6 +44,7 @@ pub fn calc_best_hand(hand: &[Card], rank: Rank) -> Vec<Card> {
             *value_count.entry(card.0).or_insert(0) += 1;
         });
 
+    // Sort cards according to rank
     match rank {
         HighCard | Flush | StraightFlush | RoyalFlush => {
             cards.sort_by(|a, b| b.cmp(a));
@@ -61,6 +62,7 @@ pub fn calc_best_hand(hand: &[Card], rank: Rank) -> Vec<Card> {
         }
     }
 
+    // Get most frequent suit if hand is a type of Flush
     if rank == Flush || rank == StraightFlush || rank == RoyalFlush {
         let max_suit: Suit = mode_suit(&cards).unwrap();
         cards = cards.iter()
@@ -69,6 +71,7 @@ pub fn calc_best_hand(hand: &[Card], rank: Rank) -> Vec<Card> {
             .collect();
     }
 
+    // Get best hand depending on rank
     match rank {
         HighCard | OnePair | ThreeOfKind | Flush | RoyalFlush =>
             cards.iter()
@@ -82,7 +85,9 @@ pub fn calc_best_hand(hand: &[Card], rank: Rank) -> Vec<Card> {
                 .map(|&c| c)
                 .collect();
             kicker.sort_by(|a, b| b.cmp(a));
-            best_hand.push(kicker[0]);
+            if !kicker.is_empty() {
+                best_hand.push(kicker[0]);
+            }
             best_hand
         }
         Straight | StraightFlush => {
@@ -90,14 +95,12 @@ pub fn calc_best_hand(hand: &[Card], rank: Rank) -> Vec<Card> {
                 let ace_low: Card = Card(AceLow, cards[0].1);
                 cards.push(ace_low);
             }
-            let mut best_hand: Vec<Card> = Vec::new();
-            for straight in cards.windows(5) {
-                if straight[0].0 as u8 - straight[4].0 as u8 == 4 {
-                    best_hand = straight.to_vec();
-                    break;
-                }
-            }
-            best_hand
+            cards.windows(5)
+                .filter(|straight| straight[0].0 as u8 - straight[4].0 as u8 == 4)
+                .take(1)
+                .flatten()
+                .map(|&c| c)
+                .collect()
         }
         FullHouse => {
             let mut best_hand: Vec<Card> = cards[0..3].to_vec();
@@ -117,58 +120,61 @@ pub fn calc_best_hand(hand: &[Card], rank: Rank) -> Vec<Card> {
 }
 
 pub fn calc_rank(hand: &[Card]) -> Rank {
-    let len: usize = hand.len();
+    if hand.len() < 5 {
+        return other_rank(&hand);
+    }
+
     let mut cards: Vec<Card> = hand.to_vec();
     cards.sort_by(|a, b| a.cmp(b));
     let mut uniq_cards: Vec<Card> = cards.clone();
     cards.reverse();
     uniq_cards.dedup();
     uniq_cards.reverse();
-    if len >= 5 {
-        if let Some(rank) = check_flush(&cards) {
-            rank
-        } else if is_straight(&uniq_cards) {
-            Straight
-        } else {
-            other_rank(&cards)
-        }
+
+    if let Some(rank) = check_flush(&cards) {
+        rank
+    } else if is_straight(&uniq_cards) {
+        Straight
     } else {
         other_rank(&cards)
     }
 }
 
 fn check_flush(hand: &[Card]) -> Option<Rank> {
-    let mut rank: Option<Rank> = None;
-    if let Some(suit) = mode_suit(&hand) {
-        let flush: Vec<Card> = hand.iter()
-            .filter(|&c| c.1 == suit)
-            .map(|&c| c)
-            .collect();
-        if flush.len() >= 5 {
-            rank = match is_straight(&flush) {
-                true => match flush[0].0 == AceHigh && flush[4].0 == Ten {
-                    true => Some(RoyalFlush),
-                    false => Some(StraightFlush)
-                },
-                false => Some(Flush)
-            }
-        }
+    let some_suit: Option<Suit> = mode_suit(&hand);
+    if some_suit == None {
+        return None;
     }
-    rank
+
+    let suit = some_suit.unwrap();
+    let flush: Vec<Card> = hand.iter()
+        .filter(|&c| c.1 == suit)
+        .map(|&c| c)
+        .collect();
+    if flush.len() < 5 {
+        None
+    } else if !is_straight(&flush) {
+        Some(Flush)
+    } else if flush[0].0 == AceHigh && flush[4].0 == Ten {
+        Some(RoyalFlush)
+    } else {
+        Some(StraightFlush)
+    }
 }
 
 fn is_straight(hand: &[Card]) -> bool {
-    match hand.len() >= 5 {
-        true => {
-            let mut cards = hand.to_vec();
-            if cards[0].0 == AceHigh {
-                let ace_low: Card = Card(AceLow, cards[0].1);
-                cards.push(ace_low);
-            }
-            cards.windows(5).any(|straight| straight[0].0 as u8 - straight[4].0 as u8 == 4)
-        }
-        false => false
+    if hand.len() < 5 {
+        return false;
     }
+
+    let mut cards = hand.to_vec();
+
+    if cards[0].0 == AceHigh {
+        let ace_low: Card = Card(AceLow, cards[0].1);
+        cards.push(ace_low);
+    }
+
+    cards.windows(5).any(|straight| straight[0].0 as u8 - straight[4].0 as u8 == 4)
 }
 
 fn mode_suit(cards: &[Card]) -> Option<Suit> {
@@ -274,12 +280,21 @@ mod calc_tests {
                                    Card(Two, Hearts),
                                    Card(Nine, Clubs),
                                    Card(Two, Clubs)];
+        let hand2: Vec<Card> = vec![Card(Nine, Hearts),
+                                    Card(Nine, Spades),
+                                    Card(Nine, Diamonds),
+                                    Card(Nine, Clubs)];
         assert_eq!(calc_rank(&hand), FourOfKind);
         assert_eq!(calc_best_hand(&hand, FourOfKind), vec![Card(Nine, Hearts),
                                                            Card(Nine, Diamonds),
                                                            Card(Nine, Spades),
                                                            Card(Nine, Clubs),
                                                            Card(Two, Hearts)]);
+        assert_eq!(calc_rank(&hand2), FourOfKind);
+        assert_eq!(calc_best_hand(&hand2, FourOfKind), vec![Card(Nine, Hearts),
+                                                            Card(Nine, Diamonds),
+                                                            Card(Nine, Spades),
+                                                            Card(Nine, Clubs)]);
     }
 
     #[test]
@@ -385,12 +400,21 @@ mod calc_tests {
                                    Card(Two, Hearts),
                                    Card(Six, Clubs),
                                    Card(Four, Clubs)];
+        let hand2: Vec<Card> = vec![Card(Nine, Hearts),
+                                    Card(Two, Diamonds),
+                                    Card(Nine, Spades),
+                                    Card(Two, Hearts), ];
         assert_eq!(calc_rank(&hand), TwoPair);
         assert_eq!(calc_best_hand(&hand, TwoPair), vec![Card(Nine, Hearts),
                                                         Card(Nine, Spades),
                                                         Card(Two, Hearts),
                                                         Card(Two, Diamonds),
                                                         Card(Eight, Diamonds)]);
+        assert_eq!(calc_rank(&hand2), TwoPair);
+        assert_eq!(calc_best_hand(&hand2, TwoPair), vec![Card(Nine, Hearts),
+                                                         Card(Nine, Spades),
+                                                         Card(Two, Hearts),
+                                                         Card(Two, Diamonds)]);
     }
 
     #[test]
