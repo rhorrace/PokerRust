@@ -9,16 +9,23 @@ pub struct Game {
     deck: VecDeque<Card>,
     player: Vec<Card>,
     computer: Vec<Card>,
+    //burned: Vec<Card>
 }
 
 impl Game {
+
+    // Constructor(s)
+
     pub fn new() -> Game {
         Game {
             deck: build_deck(),
             player: Vec::new(),
             computer: Vec::new(),
+            //burned: Vec::new()
         }
     }
+
+    // Public functions
 
     pub fn play_seven_card_stud(&mut self) {
         self.shuffle();
@@ -26,6 +33,15 @@ impl Game {
         self.display_hands();
         self.winner();
     }
+
+    pub fn play_five_card_draw(&mut self) {
+        self.shuffle();
+        self.deal(5);
+        self.display_hands();
+        self.winner();
+    }
+
+    // Private functions
 
     fn deal(&mut self, n: u8) {
         for _ in 0..n {
@@ -75,7 +91,7 @@ impl Game {
                 return;
             }
         }
-        println!("It's a Tie!")
+        println!("It's a Tie!");
     }
 }
 

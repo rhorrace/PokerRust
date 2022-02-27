@@ -136,7 +136,7 @@ mod card_tests {
         let card1: Card = Card(Ten, Hearts);
         let card2: Card = Card(Ten, Diamonds);
         let card3: Card = Card(Five, Diamonds);
-        assert!(card1 == card2);
+        assert_eq!(card1, card2);
         assert_eq!(card1 == card3, false);
     }
 
@@ -146,7 +146,7 @@ mod card_tests {
         let card2: Card = Card(Ten, Diamonds);
         let card3: Card = Card(Five, Diamonds);
         assert_eq!(card1 != card2, false);
-        assert!(card1 != card3);
+        assert_ne!(card1, card3);
     }
 
     #[test]
