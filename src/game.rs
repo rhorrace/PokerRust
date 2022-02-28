@@ -150,8 +150,9 @@ impl Game {
         if show_computer {
             println!("Computer: {:?}", self.computer);
         }
-
-        println!("Community: {:?}", self.community);
+        if !self.community.is_empty() {
+            println!("Community: {:?}", self.community);
+        }
     }
 
     fn shuffle(&mut self) {
