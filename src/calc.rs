@@ -146,7 +146,7 @@ fn check_flush(hand: &[Card]) -> Option<Rank> {
         return None;
     }
 
-    let suit = some_suit.unwrap();
+    let suit: Suit = some_suit.unwrap();
     let flush: Vec<Card> = hand.iter()
         .filter(|&c| c.1 == suit)
         .map(|&c| c)
@@ -167,26 +167,27 @@ fn is_straight(hand: &[Card]) -> bool {
         return false;
     }
 
-    let mut cards = hand.to_vec();
+    let mut cards: Vec<Card> = hand.to_vec();
 
     if cards[0].0 == AceHigh {
         let ace_low: Card = Card(AceLow, cards[0].1);
         cards.push(ace_low);
     }
 
-    cards.windows(5).any(|straight| straight[0].0 as u8 - straight[4].0 as u8 == 4)
+    cards.windows(5)
+        .any(|straight| straight[0].0 as u8 - straight[4].0 as u8 == 4)
 }
 
 fn mode_suit(cards: &[Card]) -> Option<Suit> {
     let mut suit_count: HashMap<Suit, u8> = HashMap::new();
 
-    for &card in cards {
-        *suit_count.entry(card.1).or_insert(0) += 1;
-    }
-
-    suit_count.into_iter()
-        .max_by_key(|&(_, count)| count)
-        .map(|(val, _)| val)
+    cards.iter()
+        .map(|card| card.1)
+        .max_by_key(|&suit| {
+            let count = suit_count.entry(suit).or_insert(0);
+            *count += 1;
+            *count
+        })
 }
 
 fn other_rank(hand: &[Card]) -> Rank {
