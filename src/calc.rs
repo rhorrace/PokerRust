@@ -187,7 +187,7 @@ fn mode_suit(cards: &[Card]) -> Option<Suit> {
 
 fn other_rank(hand: &[Card]) -> Rank {
     let mut value_count: HashMap<Name, u8> = HashMap::new();
-    let mut counts: HashMap<u8, u8> = (1..=4).map(|i| (i, 0)).collect::<HashMap<_, _>>();
+    let mut counts: HashMap<u8, u8> = (1..=4).map(|i| (i, 0)).collect();
     hand.iter()
         .for_each(|card| *value_count.entry(card.0).or_insert(0) += 1);
     value_count.values()
