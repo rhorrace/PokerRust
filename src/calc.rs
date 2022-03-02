@@ -1,6 +1,6 @@
 use crate::calc::Rank::*;
 use crate::card::{Card, Name, Name::*, Suit};
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
@@ -121,28 +121,19 @@ pub fn calc_best_hand(hand: &[Card], rank: Rank) -> Vec<Card> {
 
 pub fn calc_rank(hand: &[Card]) -> Rank {
     if hand.len() < 5 {
-        return other_rank(&hand);
-    }
-
-    let mut cards: Vec<Card> = hand.to_vec();
-    cards.sort_by(|a, b| a.cmp(b));
-    let mut uniq_cards: Vec<Card> = cards.clone();
-    cards.reverse();
-    uniq_cards.dedup();
-    uniq_cards.reverse();
-
-    if let Some(rank) = check_flush(&cards) {
+        other_rank(&hand)
+    } else if let Some(rank) = check_flush(&hand) {
         rank
-    } else if is_straight(&uniq_cards) {
+    } else if is_straight(&hand) {
         Straight
     } else {
-        other_rank(&cards)
+        other_rank(&hand)
     }
 }
 
 fn check_flush(hand: &[Card]) -> Option<Rank> {
     let some_suit: Option<Suit> = mode_suit(&hand);
-    if some_suit == None {
+    if some_suit == None || hand.len() < 5 {
         return None;
     }
 
@@ -151,6 +142,8 @@ fn check_flush(hand: &[Card]) -> Option<Rank> {
         .filter(|&c| c.1 == suit)
         .map(|&c| c)
         .collect();
+    println!("{:?}", flush);
+
     if flush.len() < 5 {
         None
     } else if !is_straight(&flush) {
@@ -166,16 +159,18 @@ fn is_straight(hand: &[Card]) -> bool {
     if hand.len() < 5 {
         return false;
     }
+    let mut names: BTreeSet<Name> = hand.iter()
+        .map(|card| card.0)
+        .collect();
 
-    let mut cards: Vec<Card> = hand.to_vec();
-
-    if cards[0].0 == AceHigh {
-        let ace_low: Card = Card(AceLow, cards[0].1);
-        cards.push(ace_low);
+    if names.contains(&AceHigh) {
+        names.insert(AceLow);
     }
 
-    cards.windows(5)
-        .any(|straight| straight[0].0 as u8 - straight[4].0 as u8 == 4)
+    names.into_iter()
+        .collect::<Vec<Name>>()
+        .windows(5)
+        .any(|straight| straight[4] as u8 - straight[0] as u8 == 4)
 }
 
 fn mode_suit(cards: &[Card]) -> Option<Suit> {
@@ -230,10 +225,10 @@ mod calc_tests {
         let hand: Vec<Card> = vec![Card(AceHigh, Hearts),
                                    Card(King, Hearts),
                                    Card(Two, Diamonds),
-                                   Card(Queen, Hearts),
+                                   Card(Ten, Hearts),
                                    Card(Seven, Spades),
                                    Card(Jack, Hearts),
-                                   Card(Ten, Hearts)];
+                                   Card(Queen, Hearts)];
         assert_eq!(calc_rank(&hand), RoyalFlush);
         assert_eq!(calc_best_hand(&hand, RoyalFlush), vec![Card(AceHigh, Hearts),
                                                            Card(King, Hearts),
