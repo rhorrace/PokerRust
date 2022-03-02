@@ -148,10 +148,16 @@ fn check_flush(hand: &[Card]) -> Option<Rank> {
         None
     } else if !is_straight(&flush) {
         Some(Flush)
-    } else if flush[0].0 == AceHigh && flush[4].0 == Ten {
-        Some(RoyalFlush)
     } else {
-        Some(StraightFlush)
+        let names: BTreeSet<Name> = hand.iter()
+        .map(|card| card.0)
+        .collect();
+        let royal_flush = BTreeSet::from([Ten, Jack, Queen, King, AceHigh]);
+        if royal_flush.is_subset(&names) {
+            Some(RoyalFlush)
+        } else {
+            Some(StraightFlush)
+        }
     }
 }
 
