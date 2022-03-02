@@ -65,24 +65,21 @@ pub fn calc_best_hand(hand: &[Card], rank: Rank) -> Vec<Card> {
     // Get most frequent suit if hand is a type of Flush
     if rank == Flush || rank == StraightFlush || rank == RoyalFlush {
         let max_suit: Suit = mode_suit(&cards).unwrap();
-        cards = cards.iter()
+        cards = cards.into_iter()
             .filter(|c| c.1 == max_suit)
-            .map(|&c| c)
             .collect();
     }
 
     // Get best hand depending on rank
     match rank {
         HighCard | OnePair | ThreeOfKind | Flush | RoyalFlush =>
-            cards.iter()
+            cards.into_iter()
                 .take(5)
-                .map(|&c| c)
                 .collect(),
         TwoPair | FourOfKind => {
             let mut best_hand: Vec<Card> = cards[0..4].to_vec();
-            let mut kicker: Vec<Card> = cards.iter()
+            let mut kicker: Vec<Card> = cards.into_iter()
                 .skip(4)
-                .map(|&c| c)
                 .collect();
             kicker.sort_by(|a, b| b.cmp(a));
             if !kicker.is_empty() {
@@ -105,15 +102,13 @@ pub fn calc_best_hand(hand: &[Card], rank: Rank) -> Vec<Card> {
         FullHouse => {
             let mut best_hand: Vec<Card> = cards[0..3].to_vec();
             best_hand.sort_by(|a, b| a.1.cmp(&b.1));
-            let mut pairs: Vec<Card> = cards.iter()
+            let mut pairs: Vec<Card> = cards.into_iter()
                 .skip(3)
                 .filter(|&c| value_count[&c.0] >= 2)
-                .map(|&c| c)
                 .collect();
             pairs.sort_by(|a, b| b.cmp(a)
                 .then_with(|| a.1.cmp(&b.1)));
-            let mut pair: Vec<Card> = pairs[0..2].to_vec();
-            best_hand.append(&mut pair);
+            best_hand.extend(&pairs[..2]);
             best_hand
         }
     }
@@ -142,7 +137,6 @@ fn check_flush(hand: &[Card]) -> Option<Rank> {
         .filter(|&c| c.1 == suit)
         .map(|&c| c)
         .collect();
-    println!("{:?}", flush);
 
     if flush.len() < 5 {
         None
