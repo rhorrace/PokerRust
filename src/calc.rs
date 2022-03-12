@@ -100,11 +100,11 @@ pub fn calc_best_hand(hand: &[Card], rank: Rank) -> Vec<Card> {
         }
         FullHouse => {
             let mut best_hand: Vec<Card> = cards[0..3].to_vec();
-            best_hand.sort_by(|a, b| a.1.cmp(&b.1));
             let mut pairs: Vec<Card> = cards.into_iter()
                 .skip(3)
                 .filter(|&c| value_count[&c.0] >= 2)
                 .collect();
+
             pairs.sort_by(|a, b| b.cmp(a)
                 .then_with(|| a.1.cmp(&b.1)));
             best_hand.extend(&pairs[..2]);
@@ -114,9 +114,7 @@ pub fn calc_best_hand(hand: &[Card], rank: Rank) -> Vec<Card> {
 }
 
 pub fn calc_rank(hand: &[Card]) -> Rank {
-    if hand.len() < 5 {
-        other_rank(&hand)
-    } else if let Some(rank) = check_flush(&hand) {
+    if let Some(rank) = check_flush(&hand) {
         rank
     } else if is_straight(&hand) {
         Straight
