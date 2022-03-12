@@ -1,6 +1,6 @@
 use crate::calc::Rank::*;
 use crate::card::{Card, Name, Name::*, Suit};
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
@@ -39,10 +39,9 @@ impl Display for Rank {
 pub fn calc_best_hand(hand: &[Card], rank: Rank) -> Vec<Card> {
     let mut cards: Vec<Card> = hand.to_vec();
     let mut value_count: HashMap<Name, u8> = HashMap::new();
+
     hand.iter()
-        .for_each(|card| {
-            *value_count.entry(card.0).or_insert(0) += 1;
-        });
+        .for_each(|card| *value_count.entry(card.0).or_insert(0) += 1);
 
     // Sort cards according to rank
     match rank {
@@ -64,9 +63,9 @@ pub fn calc_best_hand(hand: &[Card], rank: Rank) -> Vec<Card> {
 
     // Get most frequent suit if hand is a type of Flush
     if rank == Flush || rank == StraightFlush || rank == RoyalFlush {
-        let max_suit: Suit = mode_suit(&cards).unwrap();
+        let suit: Suit = mode_suit(&cards).unwrap();
         cards = cards.into_iter()
-            .filter(|c| c.1 == max_suit)
+            .filter(|c| c.1 == suit)
             .collect();
     }
 
@@ -128,6 +127,7 @@ pub fn calc_rank(hand: &[Card]) -> Rank {
 
 fn check_flush(hand: &[Card]) -> Option<Rank> {
     let some_suit: Option<Suit> = mode_suit(&hand);
+
     if some_suit == None || hand.len() < 5 {
         return None;
     }
@@ -139,19 +139,21 @@ fn check_flush(hand: &[Card]) -> Option<Rank> {
         .collect();
 
     if flush.len() < 5 {
-        None
-    } else if !is_straight(&flush) {
-        Some(Flush)
-    } else {
-        let names: BTreeSet<Name> = hand.iter()
+        return None;
+    }
+
+    if !is_straight(&flush) {
+        return Some(Flush);
+    }
+
+    let names: HashSet<Name> = hand.iter()
         .map(|card| card.0)
         .collect();
-        let royal_flush = BTreeSet::from([Ten, Jack, Queen, King, AceHigh]);
-        if royal_flush.is_subset(&names) {
-            Some(RoyalFlush)
-        } else {
-            Some(StraightFlush)
-        }
+    let royal_flush: HashSet<Name> = HashSet::from([Ten, Jack, Queen, King, AceHigh]);
+
+    match royal_flush.is_subset(&names) {
+        true => Some(RoyalFlush),
+        false => Some(StraightFlush)
     }
 }
 
@@ -159,6 +161,7 @@ fn is_straight(hand: &[Card]) -> bool {
     if hand.len() < 5 {
         return false;
     }
+
     let mut names: BTreeSet<Name> = hand.iter()
         .map(|card| card.0)
         .collect();
@@ -188,23 +191,22 @@ fn mode_suit(cards: &[Card]) -> Option<Suit> {
 fn other_rank(hand: &[Card]) -> Rank {
     let mut value_count: HashMap<Name, u8> = HashMap::new();
     let mut counts: HashMap<u8, u8> = (1..=4).map(|i| (i, 0)).collect();
+
     hand.iter()
         .for_each(|card| *value_count.entry(card.0).or_insert(0) += 1);
     value_count.values()
         .for_each(|&i| *counts.entry(i).or_insert(0) += 1);
-    if counts[&4] >= 1 {
-        FourOfKind
-    } else if counts[&3] >= 1 {
-        match counts[&3] > 1 || counts[&2] >= 1 {
-            true => FullHouse,
-            false => ThreeOfKind
-        }
-    } else if counts[&2] >= 2 {
-        TwoPair
-    } else if counts[&2] == 1 {
-        OnePair
-    } else {
-        HighCard
+
+    if counts[&4] > 0 {
+        return FourOfKind;
+    }
+
+    match (counts[&3], counts[&2]) {
+        (0, 0) => HighCard,
+        (0, 1) => OnePair,
+        (0, _) => TwoPair,
+        (1, 0) => ThreeOfKind,
+        (_, _) => FullHouse
     }
 }
 
