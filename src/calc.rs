@@ -113,6 +113,7 @@ pub fn calc_best_hand(hand: &[Card], rank: Rank) -> Vec<Card> {
     }
 }
 
+// Calculates the rank in a given array(hand) of cards
 pub fn calc_rank(hand: &[Card]) -> Rank {
     if let Some(rank) = check_flush(&hand) {
         rank
@@ -123,6 +124,7 @@ pub fn calc_rank(hand: &[Card]) -> Rank {
     }
 }
 
+// Checks if ahd is a flush, if so, what type of flush
 fn check_flush(hand: &[Card]) -> Option<Rank> {
     let some_suit: Option<Suit> = mode_suit(&hand);
 
@@ -155,6 +157,7 @@ fn check_flush(hand: &[Card]) -> Option<Rank> {
     }
 }
 
+// Checks if hand is a straight
 fn is_straight(hand: &[Card]) -> bool {
     if hand.len() < 5 {
         return false;
@@ -174,18 +177,20 @@ fn is_straight(hand: &[Card]) -> bool {
         .any(|straight| straight[4] as u8 - straight[0] as u8 == 4)
 }
 
+// Finds the most frequent suit in the array of cards
 fn mode_suit(cards: &[Card]) -> Option<Suit> {
     let mut suit_count: HashMap<Suit, u8> = HashMap::new();
 
     cards.iter()
         .map(|card| card.1)
         .max_by_key(|&suit| {
-            let count = suit_count.entry(suit).or_insert(0);
+            let count: &mut u8 = suit_count.entry(suit).or_insert(0);
             *count += 1;
             *count
         })
 }
 
+// Calculates non-flush/non-straight rank
 fn other_rank(hand: &[Card]) -> Rank {
     let mut value_count: HashMap<Name, u8> = HashMap::new();
     let mut counts: HashMap<u8, u8> = (1..=4).map(|i| (i, 0)).collect();
